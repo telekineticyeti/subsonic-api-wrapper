@@ -1,5 +1,5 @@
-export declare namespace Subsonic {
-  export interface response {
+export declare namespace SubsonicApi {
+  interface response {
     'subsonic-response': {
       $: {
         status: StatusTypes;
@@ -53,22 +53,25 @@ export declare namespace Subsonic {
         },
       ];
       album?: {};
+      nowPlaying?: {
+        entry: getNowPlaying[];
+      };
     };
   }
 
-  export interface error {
+  interface error {
     code: string;
     message: string;
   }
 
-  export interface artist {
+  interface artist {
     id: string;
     name: string;
     coverArt: string;
     albumCount: string;
   }
 
-  export interface playlist {
+  interface playlist {
     id: string;
     name: string;
     comment: string;
@@ -81,11 +84,33 @@ export declare namespace Subsonic {
     coverArt: string;
   }
 
-  export interface playlistList {
+  interface nowPlayingEntry {
+    username: string;
+    minutesAgo: string;
+    playerId: string;
+    id: string;
+    parent?: string;
+    playerName?: string;
+    title: string;
+    isDir: string;
+    album: string;
+    artist: string;
+    track: string;
+    genre: string;
+    coverArt: string;
+    size: string;
+    contentType: string;
+    suffix: string;
+    transcodedContentType: string;
+    transcodedSuffix: string;
+    path: string;
+  }
+
+  interface playlistList {
     $: playlist;
   }
 
-  export interface song {
+  interface song {
     album: string;
     albumId?: string;
     artistId?: string;
@@ -115,7 +140,7 @@ export declare namespace Subsonic {
   }
 
   // http://www.subsonic.org/pages/api.jsp#getAlbumList2
-  export interface albumListEntity {
+  interface albumListEntity {
     artist: string;
     artistId: string;
     coverArt: string;
@@ -129,7 +154,7 @@ export declare namespace Subsonic {
   }
 
   // http://www.subsonic.org/pages/api.jsp#getAlbum
-  export interface getAlbumEntity {
+  interface getAlbumEntity {
     artist: string;
     artistId: string;
     coverArt: string;
@@ -143,32 +168,37 @@ export declare namespace Subsonic {
 
   // http://www.subsonic.org/pages/api.jsp#getArtistInfo2
   // http://www.subsonic.org/pages/api.jsp#getArtist
-  export interface getArtistEntity {
+  interface getArtistEntity {
     id: string;
     name: string;
     coverArt: string;
     albumCount: string;
   }
 
-  export interface getArtistList {
+  interface getArtistList {
     $: artist;
   }
 
-  export interface getSongList {
+  interface getSongList {
     $: song;
   }
 
-  export interface getAlbumList {
+  interface getAlbumList {
     $: albumListEntity;
   }
 
-  export interface getAlbum {
+  interface getAlbum {
     $: getAlbumEntity;
   }
 
-  export interface getArtist {
+  interface getArtist {
     $: getArtistEntity;
   }
 
-  export type StatusTypes = 'ok' | 'error';
+  // http://www.subsonic.org/pages/api.jsp#getNowPlaying
+  interface getNowPlaying {
+    $: nowPlayingEntry;
+  }
+
+  type StatusTypes = 'ok' | 'error';
 }
