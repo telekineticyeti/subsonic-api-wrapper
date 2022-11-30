@@ -1,8 +1,8 @@
-// import { catchError, from, map, Observable, switchMap, throwError } from 'rxjs';
 import { convertableToString, ParserOptions, parseString } from 'xml2js';
 import * as crypto from 'crypto';
 import fetch from 'node-fetch';
-import { Subsonic } from './interfaces'
+import { SubsonicApi } from './subsonic.api.response.interfaces';
+import { Subsonic } from './subsonic.wrapper.interfaces';
 
 export default class SubsonicApiWrapper {
   constructor(
@@ -26,13 +26,13 @@ export default class SubsonicApiWrapper {
    * @param params list of optional parameters for this endpoint
    * @returns Observable of parsed XML to JSON object
    */
-  public async callApi(endpoint: string, params?: { [key: string]: string; }[]): Promise<Subsonic.response> {
+  public async callApi(endpoint: string, params?: { [key: string]: string }[]): Promise<SubsonicApi.response> {
     const url = this.constructEndpointUrl(endpoint, params);
 
     try {
       const response = await fetch(url);
       const body = await response.text();
-      return await this.asyncXmlParse<Subsonic.response>(body, { explicitArray: true });
+      return await this.asyncXmlParse<SubsonicApi.response>(body, { explicitArray: true });
     } catch (error) {
       throw new Error(error as any);
     }
@@ -42,14 +42,14 @@ export default class SubsonicApiWrapper {
    * Get an array of Playlists.
    * @returns An array containing playlists.
    */
-  public async getPlaylists(): Promise<Playlist[]> {
+  public async getPlaylists(): Promise<Subsonic.Playlist[]> {
     try {
       const apiResponse = await this.callApi('getPlaylists');
       if (!apiResponse['subsonic-response'].playlists) {
         return [];
-      };
+      }
       const payload = apiResponse['subsonic-response'].playlists[0];
-      const playlists: Playlist[] = payload.playlist!.map(playlist => playlist.$);
+      const playlists: Subsonic.Playlist[] = payload.playlist!.map(playlist => playlist.$);
       return playlists;
     } catch (error) {
       throw new Error(error as any);
@@ -61,14 +61,14 @@ export default class SubsonicApiWrapper {
    * @param id Playlist target ID
    * @returns PlaylistDetails
    */
-  public async getPlaylist(id: string): Promise<PlaylistDetails> {
+  public async getPlaylist(id: string): Promise<Subsonic.PlaylistDetails> {
     try {
       const apiResponse = await this.callApi('getPlaylist', [{ id }]);
       if (!apiResponse['subsonic-response'].playlist) {
-        throw new Error(`Playlist ID ${id} not found`)
-      };
+        throw new Error(`Playlist ID ${id} not found`);
+      }
       const payload = apiResponse['subsonic-response'].playlist[0];
-      const playlist: PlaylistDetails = {
+      const playlist: Subsonic.PlaylistDetails = {
         playlist: payload.$,
         songs: payload.entry ? payload.entry.map(s => s.$) : [],
       };
@@ -78,6 +78,30 @@ export default class SubsonicApiWrapper {
     }
   }
 
+  public async getNowPlaying(): Promise<Subsonic.NowPlaying[]> {
+    const apiResponse = await this.callApi('getNowPlaying');
+    try {
+      if (!apiResponse['subsonic-response'].nowPlaying) {
+        throw new Error('Nothing playing');
+      }
+      const payload = apiResponse['subsonic-response'].nowPlaying;
+      const nowPlaying: Subsonic.NowPlaying[] = payload.entry!.map(entry => ({
+        ...entry.$,
+        ...{
+          minutesAgo: parseInt(entry.$.minutesAgo),
+          playerId: parseInt(entry.$.playerId),
+          id: parseInt(entry.$.id),
+          track: parseInt(entry.$.track),
+          coverArt: parseInt(entry.$.coverArt),
+          size: parseInt(entry.$.size),
+          isDir: entry.$.isDir === 'true',
+        },
+      }));
+      return nowPlaying;
+    } catch (error) {
+      throw new Error(error as any);
+    }
+  }
 
   /**
    * Asynchronous version of xml2js `parseString()` method, to make it simler to integrate
@@ -143,65 +167,4 @@ export default class SubsonicApiWrapper {
     }
     return result;
   }
-}
-
-export interface Playlist {
-  changed: string;
-  comment: string;
-  coverArt: string;
-  created: string;
-  duration: string;
-  id: string;
-  owner: string;
-  name: string;
-  public: string;
-  songCount: string;
-}
-
-export interface Song {
-  album: string;
-  albumId?: string;
-  artistId?: string;
-  artist: string;
-  discNumber?: string;
-  bitRate: string;
-  contentType: string;
-  coverArt?: string;
-  created: string;
-  duration: string;
-  genre?: string;
-  id: string;
-  isDir: string;
-  isVideo: string;
-  parent: string;
-  path: string;
-  playCount?: string;
-  size: string;
-  starred?: string;
-  suffix: string;
-  title: string;
-  track?: string;
-  transcodedContentType?: string;
-  transcodedSuffix?: string;
-  type?: string;
-  year?: string;
-  selected?: boolean;
-  previousClicked?: boolean;
-}
-
-export interface Album {
-  artist: string;
-  artistId: string;
-  coverArt?: string;
-  created: string;
-  duration: string;
-  genre?: string;
-  id: string;
-  name: string;
-  songCount: string;
-}
-
-export interface PlaylistDetails {
-  playlist: Playlist;
-  songs: Song[];
 }
