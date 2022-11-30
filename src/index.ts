@@ -41,12 +41,12 @@ class SubsonicApiWrapper {
     }
   }
 
-  public async callApiBinary(endpoint: string, params?: {[key: string]: string | number}[]): Promise<ArrayBuffer> {
+  public async callApiBinary(endpoint: string, params?: {[key: string]: string | number}[]): Promise<Buffer> {
     const url = this.constructEndpointUrl(endpoint, params);
 
     try {
       const response = await fetch(url);
-      const binaryBuffer = await response.arrayBuffer();
+      const binaryBuffer = await response.buffer();
       return binaryBuffer;
     } catch (error) {
       throw new Error(error as any);
@@ -133,7 +133,7 @@ class SubsonicApiWrapper {
     }
   }
 
-  public async getCoverArt(id: number, size = 150): Promise<ArrayBuffer> {
+  public async getCoverArt(id: number, size = 150): Promise<Buffer> {
     try {
       const apiResponse = await this.callApiBinary('getCoverArt', [{id}, {size}]);
       return apiResponse;
