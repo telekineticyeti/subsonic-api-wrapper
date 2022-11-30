@@ -1,8 +1,11 @@
-import type { SubsonicApi } from './subsonic.api.response.interfaces';
-import type { Subsonic } from './subsonic.wrapper.interfaces';
-import { convertableToString, ParserOptions, parseString } from 'xml2js';
+import type {SubsonicApi} from './subsonic.api.response.interfaces';
+import type {Subsonic} from './subsonic.wrapper.interfaces';
+import {convertableToString, ParserOptions, parseString} from 'xml2js';
 import * as crypto from 'crypto';
 import fetch from 'node-fetch';
+import Utilities from './utilities.helper';
+
+const util = new Utilities();
 
 class SubsonicApiWrapper {
   constructor(
@@ -26,13 +29,13 @@ class SubsonicApiWrapper {
    * @param params list of optional parameters for this endpoint
    * @returns Observable of parsed XML to JSON object
    */
-  public async callApi(endpoint: string, params?: { [key: string]: string }[]): Promise<SubsonicApi.response> {
+  public async callApi(endpoint: string, params?: {[key: string]: string}[]): Promise<SubsonicApi.response> {
     const url = this.constructEndpointUrl(endpoint, params);
 
     try {
       const response = await fetch(url);
       const body = await response.text();
-      return await this.asyncXmlParse<SubsonicApi.response>(body, { explicitArray: true });
+      return await this.asyncXmlParse<SubsonicApi.response>(body, {explicitArray: true});
     } catch (error) {
       throw new Error(error as any);
     }
@@ -63,7 +66,7 @@ class SubsonicApiWrapper {
    */
   public async getPlaylist(id: string): Promise<Subsonic.PlaylistDetails> {
     try {
-      const apiResponse = await this.callApi('getPlaylist', [{ id }]);
+      const apiResponse = await this.callApi('getPlaylist', [{id}]);
       if (!apiResponse['subsonic-response'].playlist) {
         throw new Error(`Playlist ID ${id} not found`);
       }
@@ -81,29 +84,34 @@ class SubsonicApiWrapper {
   public async getNowPlaying(): Promise<Subsonic.NowPlaying[]> {
     const apiResponse = await this.callApi('getNowPlaying');
     try {
-      if (!apiResponse['subsonic-response'].nowPlaying) {
-        throw new Error('Nothing playing');
+      // For some reason, airsonmic returns an empty string as first item in
+      // array if nothing is playing.
+      if (
+        !apiResponse['subsonic-response'].nowPlaying ||
+        typeof apiResponse['subsonic-response'].nowPlaying[0] === 'string'
+      ) {
+        return [];
       }
       const payload = apiResponse['subsonic-response'].nowPlaying[0];
       const nowPlaying: Subsonic.NowPlaying[] = payload.entry.map(entry => ({
         ...entry.$,
         ...{
-          minutesAgo: this.safeNumber(entry.$.minutesAgo),
-          playerId: this.safeNumber(entry.$.playerId),
-          id: this.safeNumber(entry.$.id),
-          track: this.safeNumber(entry.$.track),
-          coverArt: this.safeNumber(entry.$.coverArt),
-          size: this.safeNumber(entry.$.size),
+          minutesAgo: util.safeNumber(entry.$.minutesAgo),
+          playerId: util.safeNumber(entry.$.playerId),
+          id: util.safeNumber(entry.$.id),
+          track: util.safeNumber(entry.$.track),
+          coverArt: util.safeNumber(entry.$.coverArt),
+          size: util.safeNumber(entry.$.size),
           isDir: entry.$.isDir === 'true',
-          artistId: this.safeNumber(entry.$.artistId),
-          bitRate: this.safeNumber(entry.$.bitRate),
-          discNumber: this.safeNumber(entry.$.discNumber),
+          artistId: util.safeNumber(entry.$.artistId),
+          bitRate: util.safeNumber(entry.$.bitRate),
+          discNumber: util.safeNumber(entry.$.discNumber),
           isVideo: entry.$.isVideo === 'true',
-          year: this.safeNumber(entry.$.year),
-          duration: this.safeNumber(entry.$.duration),
-          playCount: this.safeNumber(entry.$.playCount),
-          albumId: this.safeNumber(entry.$.albumId),
-          parent: this.safeNumber(entry.$.parent),
+          year: util.safeNumber(entry.$.year),
+          duration: util.safeNumber(entry.$.duration),
+          playCount: util.safeNumber(entry.$.playCount),
+          albumId: util.safeNumber(entry.$.albumId),
+          parent: util.safeNumber(entry.$.parent),
           created: new Date(Date.parse(entry.$.created)),
         },
       }));
@@ -177,24 +185,6 @@ class SubsonicApiWrapper {
     }
     return result;
   }
-
-  /**
-   * Attempts to convery any given value to an integer. If the conversion
-   * fails, a value of -1 is returned.
-   * @param value The value to be converted to number.
-   * @returns number
-   */
-  private safeNumber(value: any): number {
-    try {
-      if (typeof value === 'undefined' || !value || isNaN(value)) {
-        return -1;
-      }
-      const parsedValue = parseInt(value);
-      return isNaN(parsedValue) ? -1 : parsedValue;
-    } catch (error) {
-      return -1;
-    }
-  }
 }
 
-export { SubsonicApi, Subsonic, SubsonicApiWrapper as default };
+export {SubsonicApi, Subsonic, SubsonicApiWrapper as default};
