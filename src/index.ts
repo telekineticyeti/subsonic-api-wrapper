@@ -29,13 +29,25 @@ class SubsonicApiWrapper {
    * @param params list of optional parameters for this endpoint
    * @returns Observable of parsed XML to JSON object
    */
-  public async callApi(endpoint: string, params?: {[key: string]: string}[]): Promise<SubsonicApi.response> {
+  public async callApi(endpoint: string, params?: {[key: string]: string | number}[]): Promise<SubsonicApi.response> {
     const url = this.constructEndpointUrl(endpoint, params);
 
     try {
       const response = await fetch(url);
       const body = await response.text();
       return await this.asyncXmlParse<SubsonicApi.response>(body, {explicitArray: true});
+    } catch (error) {
+      throw new Error(error as any);
+    }
+  }
+
+  public async callApiBinary(endpoint: string, params?: {[key: string]: string | number}[]): Promise<ArrayBuffer> {
+    const url = this.constructEndpointUrl(endpoint, params);
+
+    try {
+      const response = await fetch(url);
+      const binaryBuffer = await response.arrayBuffer();
+      return binaryBuffer;
     } catch (error) {
       throw new Error(error as any);
     }
@@ -121,6 +133,15 @@ class SubsonicApiWrapper {
     }
   }
 
+  public async getCoverArt(id: number, size = 150): Promise<ArrayBuffer> {
+    try {
+      const apiResponse = await this.callApiBinary('getCoverArt', [{id}, {size}]);
+      return apiResponse;
+    } catch (error) {
+      throw new Error(error as any);
+    }
+  }
+
   /**
    * Asynchronous version of xml2js `parseString()` method, to make it simler to integrate
    * into observable streams.
@@ -147,13 +168,13 @@ class SubsonicApiWrapper {
   private constructEndpointUrl(
     endpoint: string,
     params?: {
-      [key: string]: string;
+      [key: string]: string | number;
     }[],
   ): URL['href'] {
     const url = new URL(`${this.config.server}/rest/${endpoint}${this.apiAuthStr()}`);
 
     if (params) {
-      params.forEach(p => Object.entries(p).forEach(o => url.searchParams.append(o[0], o[1])));
+      params.forEach(p => Object.entries(p).forEach(o => url.searchParams.append(o[0], o[1].toString())));
     }
 
     return url.href;
