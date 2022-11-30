@@ -1,10 +1,10 @@
+import type { SubsonicApi } from './subsonic.api.response.interfaces';
+import type { Subsonic } from './subsonic.wrapper.interfaces';
 import { convertableToString, ParserOptions, parseString } from 'xml2js';
 import * as crypto from 'crypto';
 import fetch from 'node-fetch';
-import { SubsonicApi } from './subsonic.api.response.interfaces';
-import { Subsonic } from './subsonic.wrapper.interfaces';
 
-export default class SubsonicApiWrapper {
+class SubsonicApiWrapper {
   constructor(
     private config: {
       server: string;
@@ -84,6 +84,8 @@ export default class SubsonicApiWrapper {
       if (!apiResponse['subsonic-response'].nowPlaying) {
         throw new Error('Nothing playing');
       }
+
+      console.log(apiResponse);
       const payload = apiResponse['subsonic-response'].nowPlaying;
       const nowPlaying: Subsonic.NowPlaying[] = payload.entry!.map(entry => ({
         ...entry.$,
@@ -168,3 +170,5 @@ export default class SubsonicApiWrapper {
     return result;
   }
 }
+
+export { SubsonicApi, Subsonic, SubsonicApiWrapper as default };
