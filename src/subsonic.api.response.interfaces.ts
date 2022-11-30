@@ -53,9 +53,7 @@ export declare namespace SubsonicApi {
         },
       ];
       album?: {};
-      nowPlaying?: {
-        entry: getNowPlaying[];
-      };
+      nowPlaying?: { entry: getNowPlaying[] }[];
     };
   }
 
@@ -104,6 +102,16 @@ export declare namespace SubsonicApi {
     transcodedContentType: string;
     transcodedSuffix: string;
     path: string;
+    type: string;
+    artistId?: string;
+    bitRate: string;
+    discNumber?: string;
+    isVideo?: string;
+    year: string;
+    duration: string;
+    playCount?: string;
+    created: string;
+    albumId: string;
   }
 
   interface playlistList {

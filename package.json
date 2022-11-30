@@ -1,6 +1,6 @@
 {
   "name": "subsonic-api-wrapper",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Subsonic API wrapper written in Typescript",
   "type": "module",
   "main": "./dist/index.mjs",

@@ -84,19 +84,27 @@ class SubsonicApiWrapper {
       if (!apiResponse['subsonic-response'].nowPlaying) {
         throw new Error('Nothing playing');
       }
-
-      console.log(apiResponse);
-      const payload = apiResponse['subsonic-response'].nowPlaying;
-      const nowPlaying: Subsonic.NowPlaying[] = payload.entry!.map(entry => ({
+      const payload = apiResponse['subsonic-response'].nowPlaying[0];
+      const nowPlaying: Subsonic.NowPlaying[] = payload.entry.map(entry => ({
         ...entry.$,
         ...{
-          minutesAgo: parseInt(entry.$.minutesAgo),
-          playerId: parseInt(entry.$.playerId),
-          id: parseInt(entry.$.id),
-          track: parseInt(entry.$.track),
-          coverArt: parseInt(entry.$.coverArt),
-          size: parseInt(entry.$.size),
+          minutesAgo: this.safeNumber(entry.$.minutesAgo),
+          playerId: this.safeNumber(entry.$.playerId),
+          id: this.safeNumber(entry.$.id),
+          track: this.safeNumber(entry.$.track),
+          coverArt: this.safeNumber(entry.$.coverArt),
+          size: this.safeNumber(entry.$.size),
           isDir: entry.$.isDir === 'true',
+          artistId: this.safeNumber(entry.$.artistId),
+          bitRate: this.safeNumber(entry.$.bitRate),
+          discNumber: this.safeNumber(entry.$.discNumber),
+          isVideo: entry.$.isVideo === 'true',
+          year: this.safeNumber(entry.$.year),
+          duration: this.safeNumber(entry.$.duration),
+          playCount: this.safeNumber(entry.$.playCount),
+          albumId: this.safeNumber(entry.$.albumId),
+          parent: this.safeNumber(entry.$.parent),
+          created: new Date(Date.parse(entry.$.created)),
         },
       }));
       return nowPlaying;
@@ -168,6 +176,24 @@ class SubsonicApiWrapper {
       result += characterSet.charAt(Math.floor(Math.random() * characterSetLength));
     }
     return result;
+  }
+
+  /**
+   * Attempts to convery any given value to an integer. If the conversion
+   * fails, a value of -1 is returned.
+   * @param value The value to be converted to number.
+   * @returns number
+   */
+  private safeNumber(value: any): number {
+    try {
+      if (typeof value === 'undefined' || !value || isNaN(value)) {
+        return -1;
+      }
+      const parsedValue = parseInt(value);
+      return isNaN(parsedValue) ? -1 : parsedValue;
+    } catch (error) {
+      return -1;
+    }
   }
 }
 

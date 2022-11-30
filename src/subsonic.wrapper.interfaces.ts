@@ -65,7 +65,7 @@ export declare namespace Subsonic {
     minutesAgo: number;
     playerId: number;
     id: number;
-    parent?: string;
+    parent?: number;
     playerName?: string;
     title: string;
     isDir: boolean;
@@ -80,5 +80,15 @@ export declare namespace Subsonic {
     transcodedContentType: string;
     transcodedSuffix: string;
     path: string;
+    type: string;
+    artistId?: number;
+    bitRate: number;
+    discNumber?: number;
+    isVideo?: boolean;
+    year: number;
+    duration: number;
+    playCount?: number;
+    created: Date;
+    albumId: number;
   }
 }
