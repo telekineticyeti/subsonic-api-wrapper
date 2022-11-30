@@ -1,4 +1,4 @@
-import { catchError, from, map, Observable, switchMap, throwError } from 'rxjs';
+// import { catchError, from, map, Observable, switchMap, throwError } from 'rxjs';
 import { convertableToString, ParserOptions, parseString } from 'xml2js';
 import * as crypto from 'crypto';
 import fetch from 'node-fetch';
@@ -14,36 +14,11 @@ export default class SubsonicApiWrapper {
       appVersion?: string;
     },
   ) {
-    this.appName = this.config.appName || 'genericApp';
+    this.appName = this.config.appName || 'Subsonic API Wrapper for Node.js';
     this.appVersion = this.config.appVersion || '1';
   }
   private appName: string;
   private appVersion: string;
-
-  public getPlaylists(): Observable<Playlist[]> {
-    return this.callApi('getPlaylists').pipe(
-      map(res => {
-        if (!res['subsonic-response'].playlists) return [];
-        const payload = res['subsonic-response'].playlists[0];
-        const playlists: Playlist[] = payload.playlist!.map(playlist => playlist.$);
-        return playlists;
-      }),
-    );
-  }
-
-  public getPlaylist(id: string): Observable<PlaylistDetails> {
-    return this.callApi('getPlaylist', [{ id }]).pipe(
-      map(res => {
-        if (!res['subsonic-response'].playlist) throw new Error(`Playlist ID ${id} not found`);
-        const payload = res['subsonic-response'].playlist[0];
-        const playlist: PlaylistDetails = {
-          playlist: payload.$,
-          songs: payload.entry ? payload.entry.map(s => s.$) : [],
-        };
-        return playlist;
-      }),
-    );
-  }
 
   /**
    * Performs a GET call on the specified API endpoint
@@ -51,19 +26,58 @@ export default class SubsonicApiWrapper {
    * @param params list of optional parameters for this endpoint
    * @returns Observable of parsed XML to JSON object
    */
-  public callApi(
-    endpoint: string,
-    params?: {
-      [key: string]: string;
-    }[],
-  ): Observable<Subsonic.response> {
+  public async callApi(endpoint: string, params?: { [key: string]: string; }[]): Promise<Subsonic.response> {
     const url = this.constructEndpointUrl(endpoint, params);
-    return from(fetch(url)).pipe(
-      switchMap(response => response.text()),
-      switchMap(body => this.asyncXmlParse<Subsonic.response>(body, { explicitArray: true })),
-      catchError(error => this.errorHandler(error)),
-    );
+
+    try {
+      const response = await fetch(url);
+      const body = await response.text();
+      return await this.asyncXmlParse<Subsonic.response>(body, { explicitArray: true });
+    } catch (error) {
+      throw new Error(error as any);
+    }
   }
+
+  /**
+   * Get an array of Playlists.
+   * @returns An array containing playlists.
+   */
+  public async getPlaylists(): Promise<Playlist[]> {
+    try {
+      const apiResponse = await this.callApi('getPlaylists');
+      if (!apiResponse['subsonic-response'].playlists) {
+        return [];
+      };
+      const payload = apiResponse['subsonic-response'].playlists[0];
+      const playlists: Playlist[] = payload.playlist!.map(playlist => playlist.$);
+      return playlists;
+    } catch (error) {
+      throw new Error(error as any);
+    }
+  }
+
+  /**
+   * Get a single playlist by ID.
+   * @param id Playlist target ID
+   * @returns PlaylistDetails
+   */
+  public async getPlaylist(id: string): Promise<PlaylistDetails> {
+    try {
+      const apiResponse = await this.callApi('getPlaylist', [{ id }]);
+      if (!apiResponse['subsonic-response'].playlist) {
+        throw new Error(`Playlist ID ${id} not found`)
+      };
+      const payload = apiResponse['subsonic-response'].playlist[0];
+      const playlist: PlaylistDetails = {
+        playlist: payload.$,
+        songs: payload.entry ? payload.entry.map(s => s.$) : [],
+      };
+      return playlist;
+    } catch (error) {
+      throw new Error(error as any);
+    }
+  }
+
 
   /**
    * Asynchronous version of xml2js `parseString()` method, to make it simler to integrate
@@ -78,19 +92,6 @@ export default class SubsonicApiWrapper {
         if (error) return reject(error);
         return resolve(result);
       });
-    });
-  }
-
-  /**
-   * Observable stream error handler for API calls. Handle generic error events or error
-   * codes passed from fetch response.
-   */
-  private errorHandler(error: any) {
-    return throwError(() => {
-      // return error.error instanceof ErrorEvent
-      //   ? error.error.message
-      //   : `Error code ${error.status}: ${error.message}`;
-      return error;
     });
   }
 
