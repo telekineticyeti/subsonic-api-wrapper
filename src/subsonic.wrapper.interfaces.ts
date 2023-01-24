@@ -91,4 +91,17 @@ export declare namespace Subsonic {
     created: Date;
     albumId: string;
   }
+
+  interface StreamOptions {
+    maxBitRate: number;
+    format?: StreamDownloadFormats;
+  }
+
+  type StreamDownloadFormats = 'raw' | 'mp3' | 'opus';
+
+  interface BinaryResponse {
+    buffer: Buffer;
+    length: string | null;
+    type: string | null;
+  }
 }

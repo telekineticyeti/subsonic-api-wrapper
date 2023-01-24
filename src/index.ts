@@ -41,13 +41,18 @@ class SubsonicApiWrapper {
     }
   }
 
-  public async callApiBinary(endpoint: string, params?: {[key: string]: string | number}[]): Promise<Buffer> {
+  public async callApiBinary(
+    endpoint: string,
+    params?: {[key: string]: string | number}[],
+  ): Promise<Subsonic.BinaryResponse> {
     const url = this.constructEndpointUrl(endpoint, params);
-
+    console.log(endpoint);
     try {
       const response = await fetch(url);
-      const binaryBuffer = await response.buffer();
-      return binaryBuffer;
+      const buffer = await response.buffer();
+      const length = response.headers.get('content-length');
+      const type = response.headers.get('content-type');
+      return {buffer, length, type};
     } catch (error) {
       throw new Error(error as any);
     }
@@ -137,6 +142,35 @@ class SubsonicApiWrapper {
   public async getCoverArt(id: string, size = 150): Promise<Buffer> {
     try {
       const apiResponse = await this.callApiBinary('getCoverArt', [{id}, {size}]);
+      return apiResponse.buffer;
+    } catch (error) {
+      throw new Error(error as any);
+    }
+  }
+
+  /**
+   * @param id The ID of the song file to download.
+   * @param options IF provided, this method will use the /stream endpoint, otherwise the /download endpoint is used.
+   * @param options.maxBitRate Maximum bitrate of the transcoded file.
+   * @param options.format Audio format to transcode to. If set `raw` then `maxBitRate` is ignored. Default: mp3
+   * @returns BinaryResponse Object
+   */
+  public async stream(id: string, transcodeOptions?: Subsonic.StreamOptions): Promise<Subsonic.BinaryResponse> {
+    const optionsDefaults: Subsonic.StreamOptions = {maxBitRate: 0, format: 'mp3'};
+
+    if (transcodeOptions) {
+      transcodeOptions = {...optionsDefaults, ...transcodeOptions};
+    }
+
+    try {
+      const apiResponse =
+        transcodeOptions && transcodeOptions.format !== 'raw'
+          ? await this.callApiBinary('stream', [
+              {id},
+              {maxBitRate: transcodeOptions.maxBitRate},
+              {format: transcodeOptions.format!},
+            ])
+          : this.callApiBinary('download', [{id}]);
       return apiResponse;
     } catch (error) {
       throw new Error(error as any);
