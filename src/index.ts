@@ -46,7 +46,6 @@ class SubsonicApiWrapper {
     params?: {[key: string]: string | number}[],
   ): Promise<Subsonic.BinaryResponse> {
     const url = this.constructEndpointUrl(endpoint, params);
-    console.log(endpoint);
     try {
       const response = await fetch(url);
       const buffer = await response.buffer();
