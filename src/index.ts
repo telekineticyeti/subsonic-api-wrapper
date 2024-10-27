@@ -3,6 +3,7 @@ import type {Subsonic} from './subsonic.wrapper.interfaces';
 import {convertableToString, ParserOptions, parseString} from 'xml2js';
 import * as crypto from 'crypto';
 import fetch from 'node-fetch';
+import {extension} from 'mime-types';
 import Utilities from './utilities.helper';
 
 const util = new Utilities();
@@ -51,7 +52,9 @@ class SubsonicApiWrapper {
       const buffer = await response.buffer();
       const length = response.headers.get('content-length');
       const type = response.headers.get('content-type');
-      return {buffer, length, type};
+      const ext = type ? extension(type) || null : null;
+
+      return {buffer, length, type, ext};
     } catch (error) {
       throw new Error(error as any);
     }

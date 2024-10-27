@@ -103,5 +103,6 @@ export declare namespace Subsonic {
     buffer: Buffer;
     length: string | null;
     type: string | null;
+    ext: string | null;
   }
 }
