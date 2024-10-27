@@ -138,10 +138,10 @@ class SubsonicApiWrapper {
     }
   }
 
-  public async getCoverArt(id: string, size = 150): Promise<Buffer> {
+  public async getCoverArt(id: string, size = 150): Promise<Subsonic.BinaryResponse> {
     try {
       const apiResponse = await this.callApiBinary('getCoverArt', [{id}, {size}]);
-      return apiResponse.buffer;
+      return apiResponse;
     } catch (error) {
       throw new Error(error as any);
     }
