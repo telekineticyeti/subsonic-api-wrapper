@@ -90,6 +90,106 @@ export declare namespace Subsonic {
     playCount?: number;
     created: Date;
     albumId: string;
+    /** OpenSubsonic `playbackReport` only. */
+    state?: PlaybackState;
+    /** OpenSubsonic `playbackReport` only. Position when the server last heard from the player. */
+    positionMs?: number;
+    /** OpenSubsonic `playbackReport` only. 1 is normal speed. */
+    playbackRate?: number;
+    starred?: Date;
+    userRating?: number;
+  }
+
+  /** `string & {}` keeps autocomplete for the known states while allowing new ones. */
+  type PlaybackState = 'starting' | 'playing' | 'paused' | 'stopped' | (string & {});
+
+  interface OpenSubsonicExtension {
+    name: string;
+    versions: number[];
+  }
+
+  /*
+   * The types below come from the JSON API (`callApiJson()`), so numbers and booleans are real
+   * numbers and booleans. Field names follow the Subsonic/OpenSubsonic docs.
+   */
+
+  /** A song. https://opensubsonic.netlify.app/docs/responses/child/ */
+  interface Child {
+    id: string;
+    parent?: string;
+    isDir: boolean;
+    title: string;
+    album?: string;
+    artist?: string;
+    track?: number;
+    year?: number;
+    genre?: string;
+    coverArt?: string;
+    size?: number;
+    contentType?: string;
+    suffix?: string;
+    duration?: number;
+    bitRate?: number;
+    path?: string;
+    playCount?: number;
+    discNumber?: number;
+    created?: string;
+    albumId?: string;
+    artistId?: string;
+    type?: string;
+    starred?: string;
+    userRating?: number;
+    // OpenSubsonic
+    mediaType?: string;
+    played?: string;
+    bpm?: number;
+    comment?: string;
+    musicBrainzId?: string;
+    genres?: {name: string}[];
+    artists?: ArtistID3[];
+    displayArtist?: string;
+    albumArtists?: ArtistID3[];
+    displayAlbumArtist?: string;
+  }
+
+  interface ArtistID3 {
+    id: string;
+    name: string;
+    coverArt?: string;
+    artistImageUrl?: string;
+    albumCount?: number;
+    starred?: string;
+  }
+
+  interface AlbumID3 {
+    id: string;
+    name: string;
+    artist?: string;
+    artistId?: string;
+    coverArt?: string;
+    songCount: number;
+    duration: number;
+    playCount?: number;
+    created: string;
+    starred?: string;
+    year?: number;
+    genre?: string;
+  }
+
+  interface SearchResult3 {
+    artist: ArtistID3[];
+    album: AlbumID3[];
+    song: Child[];
+  }
+
+  interface Search3Options {
+    artistCount?: number;
+    artistOffset?: number;
+    albumCount?: number;
+    albumOffset?: number;
+    songCount?: number;
+    songOffset?: number;
+    musicFolderId?: string;
   }
 
   interface StreamOptions {

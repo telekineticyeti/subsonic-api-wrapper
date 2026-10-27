@@ -26,4 +26,16 @@ export default class Utilities {
       return -1;
     }
   }
+
+  /**
+   * Converts an optional attribute to a number. Unlike `safeNumber()`, a missing or invalid value
+   * gives `undefined` rather than -1.
+   * @param value The value to be converted to number.
+   * @param float Parse as a float instead of an integer.
+   */
+  public optionalNumber(value: string | undefined, float = false): number | undefined {
+    if (value === undefined || value.trim() === '') return undefined;
+    const parsed = float ? parseFloat(value) : parseInt(value, 10);
+    return isNaN(parsed) ? undefined : parsed;
+  }
 }

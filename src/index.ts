@@ -5,10 +5,22 @@ import * as crypto from 'crypto';
 import fetch from 'node-fetch';
 import {extension} from 'mime-types';
 import Utilities from './utilities.helper';
+import {SubsonicApiError, SubsonicError, SubsonicHttpError, SubsonicNetworkError} from './errors';
 
 const util = new Utilities();
 
+const AUTH_ERROR_CODES = [40, 41, 42, 43, 44, 50];
+
 class SubsonicApiWrapper {
+  /*
+   * The error classes hang off the class rather than being named exports, so the CommonJS build
+   * keeps `module.exports = SubsonicApiWrapper`. Example: `err instanceof SubsonicApiWrapper.SubsonicApiError`.
+   */
+  static readonly SubsonicError = SubsonicError;
+  static readonly SubsonicNetworkError = SubsonicNetworkError;
+  static readonly SubsonicHttpError = SubsonicHttpError;
+  static readonly SubsonicApiError = SubsonicApiError;
+
   constructor(
     private config: {
       server: string;
@@ -40,6 +52,46 @@ class SubsonicApiWrapper {
     } catch (error) {
       throw new Error(error as any);
     }
+  }
+
+  /**
+   * Performs a GET call on the specified API endpoint, asking for JSON.
+   * Unlike `callApi()`, failures throw typed errors (see `errors.ts`), including a
+   * `SubsonicApiError` when the server answers with an error status.
+   * @param endpoint Target endpoint
+   * @param params list of optional parameters for this endpoint
+   * @returns The contents of `subsonic-response`
+   */
+  public async callApiJson<T extends SubsonicApi.jsonResponse = SubsonicApi.jsonResponse>(
+    endpoint: string,
+    params?: {[key: string]: string | number}[],
+  ): Promise<T> {
+    const url = this.constructEndpointUrl(endpoint, [...(params ?? []), {f: 'json'}]);
+
+    let response;
+    try {
+      response = await fetch(url);
+    } catch (error) {
+      // node-fetch's message and the error itself include the URL, which carries credentials,
+      // so only the error code is passed on.
+      const code = (error as {code?: string}).code;
+      throw new SubsonicNetworkError(`${endpoint}: request failed${code ? ` (${code})` : ''}`);
+    }
+    if (!response.ok) throw new SubsonicHttpError(response.status, response.statusText);
+
+    let body: {'subsonic-response'?: T};
+    try {
+      body = (await response.json()) as {'subsonic-response'?: T};
+    } catch (error) {
+      throw new SubsonicNetworkError(`${endpoint}: response is not JSON`, error);
+    }
+
+    const payload = body['subsonic-response'];
+    if (!payload) throw new SubsonicNetworkError(`${endpoint}: response has no subsonic-response`);
+    if (payload.status !== 'ok') {
+      throw new SubsonicApiError(payload.error?.code ?? 0, payload.error?.message ?? `${endpoint} failed`);
+    }
+    return payload;
   }
 
   public async callApiBinary(
@@ -133,12 +185,59 @@ class SubsonicApiWrapper {
           albumId: entry.$.albumId,
           parent: entry.$.parent,
           created: new Date(Date.parse(entry.$.created)),
+          // OpenSubsonic playbackReport; absent on other servers.
+          state: entry.$.state,
+          positionMs: util.optionalNumber(entry.$.positionMs),
+          playbackRate: util.optionalNumber(entry.$.playbackRate, true),
+          starred: entry.$.starred ? new Date(Date.parse(entry.$.starred)) : undefined,
+          userRating: util.optionalNumber(entry.$.userRating),
         },
       }));
       return nowPlaying;
     } catch (error) {
       throw new Error(error as any);
     }
+  }
+
+  /**
+   * Lists the OpenSubsonic extensions the server supports, such as `playbackReport`.
+   * Servers without OpenSubsonic support return an empty array. Rejected credentials still throw.
+   */
+  public async getOpenSubsonicExtensions(): Promise<Subsonic.OpenSubsonicExtension[]> {
+    try {
+      const response = await this.callApiJson<
+        SubsonicApi.jsonResponse & {openSubsonicExtensions?: Subsonic.OpenSubsonicExtension[]}
+      >('getOpenSubsonicExtensions');
+      return response.openSubsonicExtensions ?? [];
+    } catch (error) {
+      if (error instanceof SubsonicApiError && !AUTH_ERROR_CODES.includes(error.code)) return [];
+      if (error instanceof SubsonicHttpError && error.status === 404) return [];
+      throw error;
+    }
+  }
+
+  /**
+   * Searches artists, albums and songs (ID3 tags). Missing result lists come back as empty arrays.
+   * @param query Search text. Some servers (Navidrome) accept `""` to list everything.
+   */
+  public async search3(query: string, options: Subsonic.Search3Options = {}): Promise<Subsonic.SearchResult3> {
+    const params = Object.entries(options)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => ({[key]: value as string | number}));
+    const response = await this.callApiJson<
+      SubsonicApi.jsonResponse & {searchResult3?: Partial<Subsonic.SearchResult3>}
+    >('search3', [{query}, ...params]);
+    const result = response.searchResult3 ?? {};
+    return {artist: result.artist ?? [], album: result.album ?? [], song: result.song ?? []};
+  }
+
+  /**
+   * Gets one song by ID. Throws a `SubsonicApiError` with code 70 if it doesn't exist.
+   */
+  public async getSong(id: string): Promise<Subsonic.Child> {
+    const response = await this.callApiJson<SubsonicApi.jsonResponse & {song?: Subsonic.Child}>('getSong', [{id}]);
+    if (!response.song) throw new SubsonicApiError(70, `Song ${id} not found`);
+    return response.song;
   }
 
   public async getCoverArt(id: string, size = 150): Promise<Subsonic.BinaryResponse> {
@@ -245,4 +344,6 @@ class SubsonicApiWrapper {
   }
 }
 
+// Type-only, so the CommonJS build still exports just the class.
+export type {SubsonicError, SubsonicNetworkError, SubsonicHttpError, SubsonicApiError};
 export {SubsonicApi, Subsonic, SubsonicApiWrapper as default};

@@ -57,6 +57,15 @@ export declare namespace SubsonicApi {
     };
   }
 
+  interface jsonResponse {
+    status: 'ok' | 'failed';
+    version: string;
+    type?: string;
+    serverVersion?: string;
+    openSubsonic?: boolean;
+    error?: {code: number; message: string};
+  }
+
   interface error {
     code: string;
     message: string;
@@ -112,6 +121,11 @@ export declare namespace SubsonicApi {
     playCount?: string;
     created: string;
     albumId: string;
+    state?: string;
+    positionMs?: string;
+    playbackRate?: string;
+    starred?: string;
+    userRating?: string;
   }
 
   interface playlistList {
