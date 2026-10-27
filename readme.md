@@ -9,7 +9,7 @@ For an example of how this library can be used, check the projects below:
 # Install
 
 ```bash
-npm i github:telekineticyeti/subsonic-api-wrapper#v0.1.0
+npm i github:telekineticyeti/subsonic-api-wrapper#v0.2.0
 ```
 
 # Usage
@@ -31,22 +31,23 @@ Requests use token authentication (a salted MD5 of the password), so the passwor
 
 ## Methods
 
-| Method                           | Returns                    | Notes                                                                                                                                                                                                          |
-| -------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getNowPlaying()`                | `Subsonic.NowPlaying[]`    | On servers with the OpenSubsonic `playbackReport` extension (Navidrome 0.62+), entries also have `state`, `positionMs` and `playbackRate`. `starred` and `userRating` are included when the server sends them. |
-| `getOpenSubsonicExtensions()`    | `{name, versions}[]`       | Empty on servers without OpenSubsonic. Check for `playbackReport` before relying on `state`/`positionMs`.                                                                                                      |
-| `search3(query, options?)`       | `{artist, album, song}`    | Options: `artistCount`, `albumCount`, `songCount`, their `…Offset`s and `musicFolderId`. Missing lists are `[]`.                                                                                               |
-| `getSong(id)`                    | `Subsonic.Child`           |                                                                                                                                                                                                                |
-| `getPlaylists()`                 | `Subsonic.Playlist[]`      |                                                                                                                                                                                                                |
-| `getPlaylist(id)`                | `Subsonic.PlaylistDetails` |                                                                                                                                                                                                                |
-| `getCoverArt(id, size = 150)`    | `Subsonic.BinaryResponse`  | `{buffer, length, type, ext}`                                                                                                                                                                                  |
-| `stream(id, options?)`           | `Subsonic.BinaryResponse`  | Uses `/stream` with options, `/download` without.                                                                                                                                                              |
-| `callApi(endpoint, params?)`     | parsed XML                 | Low-level.                                                                                                                                                                                                     |
-| `callApiJson(endpoint, params?)` | `subsonic-response` object | Low-level, JSON.                                                                                                                                                                                               |
+| Method                           | Returns                      | Notes                                                                                                                                                                                                          |
+| -------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getNowPlaying()`                | `Subsonic.NowPlaying[]`      | On servers with the OpenSubsonic `playbackReport` extension (Navidrome 0.62+), entries also have `state`, `positionMs` and `playbackRate`. `starred` and `userRating` are included when the server sends them. |
+| `getNowPlayingJson()`            | `Subsonic.NowPlayingEntry[]` | JSON version. Throws typed errors (e.g. on wrong credentials) where `getNowPlaying()` returns `[]`. Includes the same OpenSubsonic fields.                                                                     |
+| `getOpenSubsonicExtensions()`    | `{name, versions}[]`         | Empty on servers without OpenSubsonic. Check for `playbackReport` before relying on `state`/`positionMs`.                                                                                                      |
+| `search3(query, options?)`       | `{artist, album, song}`      | Options: `artistCount`, `albumCount`, `songCount`, their `…Offset`s and `musicFolderId`. Missing lists are `[]`.                                                                                               |
+| `getSong(id)`                    | `Subsonic.Child`             |                                                                                                                                                                                                                |
+| `getPlaylists()`                 | `Subsonic.Playlist[]`        |                                                                                                                                                                                                                |
+| `getPlaylist(id)`                | `Subsonic.PlaylistDetails`   |                                                                                                                                                                                                                |
+| `getCoverArt(id, size = 150)`    | `Subsonic.BinaryResponse`    | `{buffer, length, type, ext}`                                                                                                                                                                                  |
+| `stream(id, options?)`           | `Subsonic.BinaryResponse`    | Uses `/stream` with options, `/download` without.                                                                                                                                                              |
+| `callApi(endpoint, params?)`     | parsed XML                   | Low-level.                                                                                                                                                                                                     |
+| `callApiJson(endpoint, params?)` | `subsonic-response` object   | Low-level, JSON.                                                                                                                                                                                               |
 
 ## Errors
 
-`getOpenSubsonicExtensions()`, `search3()`, `getSong()` and `callApiJson()` throw typed errors. They're attached to the class (so the CommonJS build still exports only the class) and all extend `Error`:
+`getNowPlayingJson()`, `getOpenSubsonicExtensions()`, `search3()`, `getSong()` and `callApiJson()` throw typed errors. They're attached to the class (so the CommonJS build still exports only the class) and all extend `Error`:
 
 | Class                                     | When                                                                           | Extra fields |
 | ----------------------------------------- | ------------------------------------------------------------------------------ | ------------ |
@@ -65,7 +66,7 @@ try {
 }
 ```
 
-The older XML methods (`getNowPlaying()`, `getPlaylists()` and so on) haven't changed. They don't check the response status, so a server error such as wrong credentials gives an empty result rather than an exception.
+The older XML methods (`getNowPlaying()`, `getPlaylists()` and so on) haven't changed. They don't check the response status, so a server error such as wrong credentials gives an empty result rather than an exception. Use `getNowPlayingJson()` when you need to tell the two apart.
 
 # Development
 

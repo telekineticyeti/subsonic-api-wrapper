@@ -152,6 +152,20 @@ export declare namespace Subsonic {
     displayAlbumArtist?: string;
   }
 
+  /** A `getNowPlaying` entry from the JSON API. https://opensubsonic.netlify.app/docs/endpoints/getnowplaying/ */
+  interface NowPlayingEntry extends Child {
+    username: string;
+    minutesAgo: number;
+    playerId: number;
+    playerName?: string;
+    /** OpenSubsonic `playbackReport` only. */
+    state?: PlaybackState;
+    /** OpenSubsonic `playbackReport` only. Position when the server last heard from the player. */
+    positionMs?: number;
+    /** OpenSubsonic `playbackReport` only. 1 is normal speed. */
+    playbackRate?: number;
+  }
+
   interface ArtistID3 {
     id: string;
     name: string;

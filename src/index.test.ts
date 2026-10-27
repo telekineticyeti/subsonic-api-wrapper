@@ -85,6 +85,39 @@ describe('SubsonicApiWrapper', () => {
     });
   });
 
+  describe('getNowPlayingJson', () => {
+    it('returns typed entries', async () => {
+      const entry = {
+        id: 's1',
+        isDir: false,
+        title: 'Windowlicker',
+        username: 'testuser',
+        minutesAgo: 0,
+        playerId: 3,
+        playerName: 'Living Room',
+        state: 'playing',
+        positionMs: 1200,
+        playbackRate: 1,
+      };
+      handlers.getNowPlaying = (_url, res) => json(res, {nowPlaying: {entry: [entry]}});
+      expect(await api().getNowPlayingJson()).toEqual([entry]);
+      expect(requests[0].searchParams.get('f')).toBe('json');
+    });
+
+    it('returns [] when nothing is playing', async () => {
+      handlers.getNowPlaying = (_url, res) => json(res, {nowPlaying: {}});
+      expect(await api().getNowPlayingJson()).toEqual([]);
+      handlers.getNowPlaying = (_url, res) => json(res, {});
+      expect(await api().getNowPlayingJson()).toEqual([]);
+    });
+
+    it('throws on wrong credentials instead of returning []', async () => {
+      handlers.getNowPlaying = (_url, res) =>
+        json(res, {error: {code: 40, message: 'Wrong username or password'}}, 'failed');
+      await expect(api().getNowPlayingJson()).rejects.toBeInstanceOf(SubsonicApiWrapper.SubsonicApiError);
+    });
+  });
+
   describe('callApiJson', () => {
     it('asks for JSON and sends credentials', async () => {
       handlers.ping = (_url, res) => json(res, {});

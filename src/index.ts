@@ -200,6 +200,18 @@ class SubsonicApiWrapper {
   }
 
   /**
+   * JSON version of `getNowPlaying()`. Unlike that method, failures throw typed errors, so wrong
+   * credentials can be told apart from nothing playing. Values come typed from the server rather
+   * than parsed, and missing fields stay `undefined` (no -1 placeholders).
+   */
+  public async getNowPlayingJson(): Promise<Subsonic.NowPlayingEntry[]> {
+    const response = await this.callApiJson<
+      SubsonicApi.jsonResponse & {nowPlaying?: {entry?: Subsonic.NowPlayingEntry[]}}
+    >('getNowPlaying');
+    return response.nowPlaying?.entry ?? [];
+  }
+
+  /**
    * Lists the OpenSubsonic extensions the server supports, such as `playbackReport`.
    * Servers without OpenSubsonic support return an empty array. Rejected credentials still throw.
    */
