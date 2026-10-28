@@ -2,7 +2,7 @@ import type {SubsonicApi} from './subsonic.api.response.interfaces';
 import type {Subsonic} from './subsonic.wrapper.interfaces';
 import {convertableToString, ParserOptions, parseString} from 'xml2js';
 import * as crypto from 'crypto';
-import fetch from 'node-fetch';
+import fetch, {type Response} from 'node-fetch';
 import {extension} from 'mime-types';
 import Utilities from './utilities.helper';
 import {SubsonicApiError, SubsonicError, SubsonicHttpError, SubsonicNetworkError} from './errors';
@@ -28,6 +28,11 @@ class SubsonicApiWrapper {
       password: string;
       appName?: string;
       appVersion?: string;
+      /**
+       * Gives up on a request (including reading its body) after this many milliseconds and throws a
+       * `SubsonicNetworkError`. Default: no timeout.
+       */
+      timeoutMs?: number;
     },
   ) {
     this.appName = this.config.appName || 'Subsonic API Wrapper for Node.js';
@@ -44,13 +49,29 @@ class SubsonicApiWrapper {
    */
   public async callApi(endpoint: string, params?: {[key: string]: string | number}[]): Promise<SubsonicApi.response> {
     const url = this.constructEndpointUrl(endpoint, params);
+    const body = await this.request(endpoint, url, response => response.text());
 
     try {
-      const response = await fetch(url);
-      const body = await response.text();
       return await this.asyncXmlParse<SubsonicApi.response>(body, {explicitArray: true});
     } catch (error) {
       throw new Error(error as any);
+    }
+  }
+
+  /**
+   * Fetches `url` and reads its body with `read`. Network failures (including timeouts) become a
+   * `SubsonicNetworkError` that names only the endpoint and error code: node-fetch's messages include
+   * the URL, which carries credentials.
+   */
+  private async request<T>(endpoint: string, url: string, read: (response: Response) => Promise<T>): Promise<T> {
+    try {
+      const response = await fetch(url, this.config.timeoutMs ? {timeout: this.config.timeoutMs} : undefined);
+      return await read(response);
+    } catch (error) {
+      if (error instanceof SubsonicError) throw error;
+      const {code, type} = error as {code?: string; type?: string};
+      const reason = type === 'request-timeout' || type === 'body-timeout' ? 'timeout' : code;
+      throw new SubsonicNetworkError(`${endpoint}: request failed${reason ? ` (${reason})` : ''}`);
     }
   }
 
@@ -68,20 +89,14 @@ class SubsonicApiWrapper {
   ): Promise<T> {
     const url = this.constructEndpointUrl(endpoint, [...(params ?? []), {f: 'json'}]);
 
-    let response;
-    try {
-      response = await fetch(url);
-    } catch (error) {
-      // node-fetch's message and the error itself include the URL, which carries credentials,
-      // so only the error code is passed on.
-      const code = (error as {code?: string}).code;
-      throw new SubsonicNetworkError(`${endpoint}: request failed${code ? ` (${code})` : ''}`);
-    }
-    if (!response.ok) throw new SubsonicHttpError(response.status, response.statusText);
+    const text = await this.request(endpoint, url, async response => {
+      if (!response.ok) throw new SubsonicHttpError(response.status, response.statusText);
+      return response.text();
+    });
 
     let body: {'subsonic-response'?: T};
     try {
-      body = (await response.json()) as {'subsonic-response'?: T};
+      body = JSON.parse(text) as {'subsonic-response'?: T};
     } catch (error) {
       throw new SubsonicNetworkError(`${endpoint}: response is not JSON`, error);
     }
@@ -99,17 +114,13 @@ class SubsonicApiWrapper {
     params?: {[key: string]: string | number}[],
   ): Promise<Subsonic.BinaryResponse> {
     const url = this.constructEndpointUrl(endpoint, params);
-    try {
-      const response = await fetch(url);
+    return this.request(endpoint, url, async response => {
       const buffer = await response.buffer();
       const length = response.headers.get('content-length');
       const type = response.headers.get('content-type');
       const ext = type ? extension(type) || null : null;
-
       return {buffer, length, type, ext};
-    } catch (error) {
-      throw new Error(error as any);
-    }
+    });
   }
 
   /**
@@ -252,13 +263,12 @@ class SubsonicApiWrapper {
     return response.song;
   }
 
+  /**
+   * Network failures throw a `SubsonicNetworkError`. Error responses from the server are returned as
+   * is, so check `type` before treating `buffer` as an image.
+   */
   public async getCoverArt(id: string, size = 150): Promise<Subsonic.BinaryResponse> {
-    try {
-      const apiResponse = await this.callApiBinary('getCoverArt', [{id}, {size}]);
-      return apiResponse;
-    } catch (error) {
-      throw new Error(error as any);
-    }
+    return this.callApiBinary('getCoverArt', [{id}, {size}]);
   }
 
   /**
@@ -283,9 +293,10 @@ class SubsonicApiWrapper {
               {maxBitRate: transcodeOptions.maxBitRate},
               {format: transcodeOptions.format!},
             ])
-          : this.callApiBinary('download', [{id}]);
+          : await this.callApiBinary('download', [{id}]);
       return apiResponse;
     } catch (error) {
+      if (error instanceof SubsonicError) throw error;
       throw new Error(error as any);
     }
   }

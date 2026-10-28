@@ -22,6 +22,7 @@ const api = new SubsonicApiWrapper({
   username: 'me',
   password: 'secret',
   appName: 'my-app', // optional, sent as the client name
+  timeoutMs: 10_000, // optional; by default requests never time out
 });
 
 const nowPlaying = await api.getNowPlaying();
@@ -66,7 +67,11 @@ try {
 }
 ```
 
-The older XML methods (`getNowPlaying()`, `getPlaylists()` and so on) haven't changed. They don't check the response status, so a server error such as wrong credentials gives an empty result rather than an exception. Use `getNowPlayingJson()` when you need to tell the two apart.
+`getCoverArt()`, `stream()` and `callApiBinary()` throw `SubsonicNetworkError` when the server can't be reached or `timeoutMs` runs out. Error responses from the server are returned like any other body, so check `type` before treating `buffer` as an image or audio.
+
+Error messages never contain the request URL, which carries the authentication token. Network errors give only the endpoint and the error code, e.g. `getCoverArt: request failed (ECONNREFUSED)` or `(timeout)`.
+
+The older XML methods (`getNowPlaying()`, `getPlaylists()` and so on) haven't changed otherwise. They don't check the response status, so a server error such as wrong credentials gives an empty result rather than an exception. Use `getNowPlayingJson()` when you need to tell the two apart.
 
 # Development
 

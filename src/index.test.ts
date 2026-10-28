@@ -231,6 +231,80 @@ describe('SubsonicApiWrapper', () => {
     });
   });
 
+  describe('credentials never reach error messages', () => {
+    const unreachable = () =>
+      new SubsonicApiWrapper({server: 'http://127.0.0.1:1', username: 'testuser', password: 'secret'});
+
+    it('getCoverArt', async () => {
+      const error = await unreachable()
+        .getCoverArt('al-1')
+        .catch(e => e);
+      expect(error).toBeInstanceOf(SubsonicApiWrapper.SubsonicNetworkError);
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('getCoverArt: request failed (ECONNREFUSED)');
+      expect(JSON.stringify(error) + error.stack).not.toContain('t=');
+    });
+
+    it('stream and download', async () => {
+      for (const call of [unreachable().stream('s-1', {maxBitRate: 128}), unreachable().stream('s-1')]) {
+        const error = await call.catch(e => e);
+        expect(error).toBeInstanceOf(SubsonicApiWrapper.SubsonicNetworkError);
+        expect(error.message).not.toContain('t=');
+      }
+    });
+
+    it('the XML methods', async () => {
+      const error = await unreachable()
+        .getPlaylists()
+        .catch(e => e);
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toContain('getPlaylists: request failed (ECONNREFUSED)');
+      expect(error.message + error.stack).not.toContain('t=');
+    });
+  });
+
+  describe('timeoutMs', () => {
+    const slow = () => new SubsonicApiWrapper({server: base, username: 'testuser', password: 'secret', timeoutMs: 100});
+
+    it('gives up on a server that never answers', async () => {
+      handlers.getCoverArt = () => {};
+      const error = await slow()
+        .getCoverArt('al-1')
+        .catch(e => e);
+      expect(error).toBeInstanceOf(SubsonicApiWrapper.SubsonicNetworkError);
+      expect(error.message).toBe('getCoverArt: request failed (timeout)');
+    });
+
+    it('gives up on a body that never finishes', async () => {
+      handlers.getNowPlaying = (_url, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.write('{"subsonic-response":');
+      };
+      const error = await slow()
+        .getNowPlayingJson()
+        .catch(e => e);
+      expect(error.message).toBe('getNowPlaying: request failed (timeout)');
+    });
+
+    it('has no timeout by default', async () => {
+      handlers.ping = (_url, res) => setTimeout(() => json(res, {}), 150);
+      await expect(api().callApiJson('ping')).resolves.toMatchObject({status: 'ok'});
+    });
+  });
+
+  describe('getCoverArt', () => {
+    it('returns the image and its type', async () => {
+      handlers.getCoverArt = (url, res) => {
+        expect(url.searchParams.get('size')).toBe('256');
+        res.setHeader('Content-Type', 'image/png');
+        res.end(Buffer.from([1, 2, 3]));
+      };
+      const art = await api().getCoverArt('al-1', 256);
+      expect(art).toMatchObject({type: 'image/png', ext: 'png', length: '3'});
+      expect([...art.buffer]).toEqual([1, 2, 3]);
+    });
+  });
+
   describe('existing XML methods', () => {
     it('getPlaylists is unchanged', async () => {
       handlers.getPlaylists = (_url, res) =>
